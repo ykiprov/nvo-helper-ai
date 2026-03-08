@@ -227,7 +227,7 @@ export default function TestMode() {
   };
 
   const selectMC = (qId: string, idx: number) => {
-    if (submitted || (testType === "exam" && selectedSubject === "bel" && examModule === 1 && module1Submitted)) return;
+    if (submitted || (testType === "exam" && examModule === 1 && module1Submitted)) return;
     setAnswers(prev => ({ ...prev, [qId]: { type: "mc", value: idx } }));
   };
 
