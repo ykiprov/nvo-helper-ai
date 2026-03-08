@@ -167,15 +167,15 @@ export default function TestMode() {
     }, 0);
     const maxScore = testQuestions.reduce((sum, q) => sum + q.max_points, 0);
 
-    await supabase.from("test_attempts").insert({
+    await supabase.from("test_attempts").insert([{
       test_type: testType,
       topic_id: selectedTopic?.id || null,
       subject: selectedSubject || selectedTopic?.subject || null,
-      answers: Object.entries(answers).map(([qId, a]) => ({ question_id: qId, ...a })),
+      answers: Object.entries(answers).map(([qId, a]) => ({ question_id: qId, ...a })) as any,
       score: totalScore,
       max_score: maxScore,
       completed_at: new Date().toISOString(),
-    });
+    }]);
   };
 
   const totalScore = testQuestions.reduce((sum, q) => {
