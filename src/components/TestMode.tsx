@@ -237,8 +237,8 @@ export default function TestMode() {
   };
 
   const submitTest = async () => {
-    // For BEL exam module 1 → go to module 2
-    if (testType === "exam" && selectedSubject === "bel" && examModule === 1 && !module1Submitted) {
+    // For exam module 1 → go to module 2
+    if (testType === "exam" && examModule === 1 && !module1Submitted && module2Questions.length > 0) {
       goToModule2();
       return;
     }
