@@ -1,12 +1,16 @@
 import { useState } from "react";
-import { GraduationCap, MessageCircle, BookOpen } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { GraduationCap, MessageCircle, BookOpen, Settings, LogIn } from "lucide-react";
 import { motion } from "framer-motion";
 import ChatInterface from "@/components/ChatInterface";
 import MaterialsSection from "@/components/MaterialsSection";
+import AdminPanel from "@/components/AdminPanel";
+import TeacherLogin from "@/components/TeacherLogin";
 
-type Tab = "home" | "chat" | "materials";
+type Tab = "home" | "chat" | "materials" | "admin";
 
 const Index = () => {
+  const { user, isTeacher, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>("home");
 
   return (
@@ -14,17 +18,20 @@ const Index = () => {
       {/* Header */}
       <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <button onClick={() => setActiveTab("home")} className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center">
               <GraduationCap className="w-5 h-5 text-primary-foreground" />
             </div>
             <span className="font-display font-bold text-lg text-foreground">НВО Помощник</span>
-          </div>
+          </button>
           <nav className="flex gap-1 bg-muted rounded-xl p-1">
             {[
               { id: "home" as Tab, label: "Начало", icon: GraduationCap },
               { id: "chat" as Tab, label: "Чат", icon: MessageCircle },
               { id: "materials" as Tab, label: "Материали", icon: BookOpen },
+              ...(isTeacher
+                ? [{ id: "admin" as Tab, label: "Админ", icon: Settings }]
+                : [{ id: "admin" as Tab, label: "Вход", icon: LogIn }]),
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -45,15 +52,18 @@ const Index = () => {
 
       {/* Content */}
       <main className="flex-1">
-        {activeTab === "home" && <HeroSection onStartChat={() => setActiveTab("chat")} />}
+        {activeTab === "home" && <HeroSection onStartChat={() => setActiveTab("chat")} onMaterials={() => setActiveTab("materials")} />}
         {activeTab === "chat" && <ChatInterface />}
         {activeTab === "materials" && <MaterialsSection />}
+        {activeTab === "admin" && (
+          !loading && (user && isTeacher ? <AdminPanel /> : <TeacherLogin />)
+        )}
       </main>
     </div>
   );
 };
 
-function HeroSection({ onStartChat }: { onStartChat: () => void }) {
+function HeroSection({ onStartChat, onMaterials }: { onStartChat: () => void; onMaterials: () => void }) {
   return (
     <div className="max-w-3xl mx-auto px-4 py-16 text-center">
       <motion.div
@@ -78,7 +88,7 @@ function HeroSection({ onStartChat }: { onStartChat: () => void }) {
             💬 Започни чат
           </button>
           <button
-            onClick={() => {}}
+            onClick={onMaterials}
             className="bg-card border border-border text-foreground font-semibold px-8 py-3 rounded-xl hover:bg-muted transition-colors text-sm"
           >
             📚 Виж материали

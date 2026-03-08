@@ -14,16 +14,138 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      material_files: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_type: string | null
+          id: string
+          material_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_type?: string | null
+          id?: string
+          material_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_type?: string | null
+          id?: string
+          material_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_files_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      materials: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string | null
+          id: string
+          subject: Database["public"]["Enums"]["subject_type"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          subject: Database["public"]["Enums"]["subject_type"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          subject?: Database["public"]["Enums"]["subject_type"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      quiz_questions: {
+        Row: {
+          correct_answer: number
+          created_at: string
+          created_by: string | null
+          explanation: string | null
+          id: string
+          options: Json
+          question: string
+          subject: Database["public"]["Enums"]["subject_type"]
+        }
+        Insert: {
+          correct_answer: number
+          created_at?: string
+          created_by?: string | null
+          explanation?: string | null
+          id?: string
+          options?: Json
+          question: string
+          subject: Database["public"]["Enums"]["subject_type"]
+        }
+        Update: {
+          correct_answer?: number
+          created_at?: string
+          created_by?: string | null
+          explanation?: string | null
+          id?: string
+          options?: Json
+          question?: string
+          subject?: Database["public"]["Enums"]["subject_type"]
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "teacher"
+      subject_type: "bel" | "math"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +272,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "teacher"],
+      subject_type: ["bel", "math"],
+    },
   },
 } as const
