@@ -451,9 +451,9 @@ export default function TestMode() {
 
       {/* Timer + Module info */}
       <div className="flex items-center justify-between mb-4">
-        {isBelExam && !submitted && (
+        {isExam && !submitted && (
           <div className="text-xs bg-primary/10 text-primary px-3 py-1 rounded-full font-medium">
-            {examModule === 1 ? "Модул 1 · Тест (65 т.) · 60 мин." : "Модул 2 · Преразказ (35 т.) · 90 мин."}
+            Модул {examModule} · {examModule === 1 ? `${module1Time} мин.` : `${module2Time} мин.`}
           </div>
         )}
         {timeLeft !== null && !submitted && (
