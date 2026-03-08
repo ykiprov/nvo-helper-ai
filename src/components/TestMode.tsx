@@ -527,7 +527,7 @@ export default function TestMode() {
             <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">Въпрос {currentIdx + 1}</span>
             <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">{q.max_points} т.</span>
             {q.question_type === "open_ended" && <span className="text-xs bg-accent/20 text-accent px-2 py-0.5 rounded-full">Отворен въпрос</span>}
-            {isBelExam && submitted && (
+            {isExam && submitted && (
               <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
                 {module1Questions.includes(q) ? "Модул 1" : "Модул 2"}
               </span>
