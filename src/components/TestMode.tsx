@@ -172,51 +172,45 @@ export default function TestMode() {
     setTimeLeft(null);
   };
 
-  const startExamTest = (subject: SubjectType) => {
-    const qs = allQuestions.filter(q => q.subject === subject);
+  const startExamTest = (examId: string) => {
+    const exam = nvoExams.find(e => e.id === examId);
+    if (!exam) return;
 
-    if (subject === "bel") {
-      // NVO BEL format: Module 1 (65 pts, 60 min) = up to 25 questions (MC + short open)
-      // Module 2 (35 pts, 90 min) = retelling/essay task (open_ended with high max_points)
-      const mcQuestions = qs.filter(q => q.question_type === "multiple_choice").sort(() => Math.random() - 0.5);
-      const shortOpen = qs.filter(q => q.question_type === "open_ended" && q.max_points <= 5).sort(() => Math.random() - 0.5);
-      const essayQuestions = qs.filter(q => q.question_type === "open_ended" && q.max_points > 5).sort(() => Math.random() - 0.5);
+    const examMods = nvoModules.filter(m => m.exam_id === examId).sort((a, b) => a.module_number - b.module_number);
+    if (examMods.length === 0) { toast.error("Това НВО няма конфигурирани модули."); return; }
 
-      // Module 1: ~20 MC + ~5 short open = 25 questions total
-      const mod1MC = mcQuestions.slice(0, 20);
-      const mod1Open = shortOpen.slice(0, 5);
-      const mod1 = [...mod1MC, ...mod1Open];
+    const mod1 = examMods.find(m => m.module_number === 1);
+    const mod2 = examMods.find(m => m.module_number === 2);
 
-      // Module 2: 1 essay/retelling question
-      const mod2 = essayQuestions.slice(0, 1);
+    const getModuleQuestions = (modId: string) => {
+      const mqIds = nvoModuleQuestions
+        .filter(mq => mq.module_id === modId)
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map(mq => mq.question_id);
+      return mqIds.map(id => allQuestions.find(q => q.id === id)).filter(Boolean) as QuizQuestion[];
+    };
 
-      if (mod1.length === 0) { toast.error("Няма достатъчно въпроси за Модул 1."); return; }
+    const mod1Qs = mod1 ? getModuleQuestions(mod1.id) : [];
+    const mod2Qs = mod2 ? getModuleQuestions(mod2.id) : [];
 
-      setModule1Questions(mod1);
-      setModule2Questions(mod2);
-      setExamModule(1);
-      setModule1Submitted(false);
-      setTestQuestions(mod1);
-      setTestType("exam");
-      setSelectedSubject(subject);
-      setCurrentIdx(0);
-      setAnswers({});
-      setSubmitted(false);
-      setTimeLeft(60 * 60); // 60 minutes for module 1
-    } else {
-      // Math format: MC + open ended
-      const mc = qs.filter(q => q.question_type === "multiple_choice").sort(() => Math.random() - 0.5).slice(0, 20);
-      const oe = qs.filter(q => q.question_type === "open_ended").sort(() => Math.random() - 0.5).slice(0, 5);
-      const combined = [...mc, ...oe];
-      if (combined.length === 0) { toast.error("Няма достатъчно въпроси."); return; }
-      setTestType("exam");
-      setSelectedSubject(subject);
-      setTestQuestions(combined);
-      setCurrentIdx(0);
-      setAnswers({});
-      setSubmitted(false);
-      setTimeLeft(120 * 60); // 120 min
+    if (mod1Qs.length === 0 && mod2Qs.length === 0) {
+      toast.error("Няма добавени въпроси в това НВО.");
+      return;
     }
+
+    setModule1Questions(mod1Qs);
+    setModule2Questions(mod2Qs);
+    setModule1Time(mod1?.time_minutes || 60);
+    setModule2Time(mod2?.time_minutes || 90);
+    setExamModule(1);
+    setModule1Submitted(false);
+    setTestQuestions(mod1Qs.length > 0 ? mod1Qs : mod2Qs);
+    setTestType("exam");
+    setSelectedSubject(exam.subject);
+    setCurrentIdx(0);
+    setAnswers({});
+    setSubmitted(false);
+    setTimeLeft((mod1?.time_minutes || 60) * 60);
   };
 
   const goToModule2 = () => {
@@ -229,7 +223,7 @@ export default function TestMode() {
     setExamModule(2);
     setTestQuestions(module2Questions);
     setCurrentIdx(0);
-    setTimeLeft(90 * 60); // 90 minutes for module 2
+    setTimeLeft(module2Time * 60);
   };
 
   const selectMC = (qId: string, idx: number) => {
