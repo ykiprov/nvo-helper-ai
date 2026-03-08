@@ -620,7 +620,7 @@ export default function TestMode() {
           <button onClick={submitTest}
             className="gradient-primary text-primary-foreground font-semibold px-6 py-2 rounded-xl text-sm hover:opacity-90 transition-opacity flex items-center gap-1">
             <Send className="w-4 h-4" />
-            {isBelExam && examModule === 1 ? "Към Модул 2 →" : "Предай теста"}
+            {isExam && examModule === 1 && module2Questions.length > 0 ? "Към Модул 2 →" : "Предай теста"}
           </button>
         ) : (
           <button onClick={reset}
