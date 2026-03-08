@@ -53,6 +53,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    // Clear any stale session before signing in to avoid cached token conflicts
+    await supabase.auth.signOut();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error: error?.message || null };
   };
