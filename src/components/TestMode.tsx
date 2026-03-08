@@ -442,8 +442,7 @@ export default function TestMode() {
           <ArrowLeft className="w-4 h-4" /> Назад
         </button>
         <div className="text-sm font-medium text-foreground">
-          {isBelExam ? `📝 Пробна матура БЕЛ — Модул ${submitted ? "1+2" : examModule}` :
-           testType === "exam" ? "📝 Пробна матура" :
+          {isExam ? `📝 Пробна матура ${selectedSubject === "bel" ? "БЕЛ" : "Математика"} — Модул ${submitted ? "1+2" : examModule}` :
            testType === "full" ? "📋 Пълен тест" :
            `🎯 ${selectedTopic?.name}`}
         </div>
