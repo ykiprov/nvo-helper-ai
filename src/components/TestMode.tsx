@@ -65,20 +65,27 @@ export default function TestMode() {
 
   useEffect(() => {
     const load = async () => {
-      const [tRes, qRes] = await Promise.all([
-        supabase.from("topics").select("*").order("subject").order("sort_order"),
-        supabase.from("quiz_questions").select("*").order("created_at"),
-      ]);
-      setTopics((tRes.data || []) as Topic[]);
-      setAllQuestions(
-        (qRes.data || []).map((q: any) => ({
-          ...q,
-          options: Array.isArray(q.options) ? q.options : [],
-          question_type: q.question_type || "multiple_choice",
-          max_points: q.max_points || 1,
-        })) as QuizQuestion[]
-      );
-      setLoading(false);
+      try {
+        const [tRes, qRes] = await Promise.all([
+          supabase.from("topics").select("*").order("subject").order("sort_order"),
+          supabase.from("quiz_questions").select("*").order("created_at"),
+        ]);
+        if (tRes.error) console.error("Topics fetch error:", tRes.error);
+        if (qRes.error) console.error("Questions fetch error:", qRes.error);
+        setTopics((tRes.data || []) as Topic[]);
+        setAllQuestions(
+          (qRes.data || []).map((q: any) => ({
+            ...q,
+            options: Array.isArray(q.options) ? q.options : [],
+            question_type: q.question_type || "multiple_choice",
+            max_points: q.max_points || 1,
+          })) as QuizQuestion[]
+        );
+      } catch (err) {
+        console.error("Failed to load test data:", err);
+      } finally {
+        setLoading(false);
+      }
     };
     load();
   }, []);
