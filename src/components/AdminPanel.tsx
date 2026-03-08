@@ -229,11 +229,11 @@ export default function AdminPanel() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-muted rounded-xl p-1 mb-6">
-        {(["topics", "materials", "quiz"] as const).map(t => (
+      <div className="flex gap-1 bg-muted rounded-xl p-1 mb-6 overflow-x-auto">
+        {(["topics", "materials", "quiz", "exams"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
-            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${tab === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
-            {t === "topics" ? `🏷️ Теми (${topics.length})` : t === "materials" ? `📚 Материали (${materials.length})` : `❓ Тестове (${questions.length})`}
+            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${tab === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
+            {t === "topics" ? `🏷️ Теми (${topics.length})` : t === "materials" ? `📚 Материали (${materials.length})` : t === "quiz" ? `❓ Въпроси (${questions.length})` : "📝 Пробни НВО"}
           </button>
         ))}
       </div>
