@@ -40,7 +40,7 @@ interface QuizQuestion {
 
 export default function AdminPanel() {
   const { user, signOut } = useAuth();
-  const [tab, setTab] = useState<"materials" | "quiz" | "topics">("topics");
+  const [tab, setTab] = useState<"materials" | "quiz" | "topics" | "exams">("topics");
   const [topics, setTopics] = useState<Topic[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
