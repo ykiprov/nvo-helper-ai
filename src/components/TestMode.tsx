@@ -125,7 +125,7 @@ export default function TestMode() {
 
   // Timer effect
   useEffect(() => {
-    if (timeLeft !== null && timeLeft > 0 && !submitted && !(testType === "exam" && selectedSubject === "bel" && examModule === 1 && module1Submitted)) {
+    if (timeLeft !== null && timeLeft > 0 && !submitted && !(testType === "exam" && examModule === 1 && module1Submitted)) {
       timerRef.current = setInterval(() => {
         setTimeLeft(prev => {
           if (prev !== null && prev <= 1) {
