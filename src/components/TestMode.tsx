@@ -247,7 +247,7 @@ export default function TestMode() {
     if (timerRef.current) clearInterval(timerRef.current);
 
     // Determine all questions for grading
-    const allTestQuestions = testType === "exam" && selectedSubject === "bel"
+    const allTestQuestions = testType === "exam"
       ? [...module1Questions, ...module2Questions]
       : testQuestions;
 
