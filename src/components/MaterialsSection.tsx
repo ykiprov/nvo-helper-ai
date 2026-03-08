@@ -29,13 +29,20 @@ export default function MaterialsSection() {
 
   useEffect(() => {
     const load = async () => {
-      const [topRes, matRes] = await Promise.all([
-        supabase.from("topics").select("*").order("subject").order("sort_order"),
-        supabase.from("materials").select("*").order("created_at", { ascending: false }),
-      ]);
-      setTopics((topRes.data || []) as Topic[]);
-      setMaterials((matRes.data || []) as Material[]);
-      setLoading(false);
+      try {
+        const [topRes, matRes] = await Promise.all([
+          supabase.from("topics").select("*").order("subject").order("sort_order"),
+          supabase.from("materials").select("*").order("created_at", { ascending: false }),
+        ]);
+        if (topRes.error) console.error("Topics fetch error:", topRes.error);
+        if (matRes.error) console.error("Materials fetch error:", matRes.error);
+        setTopics((topRes.data || []) as Topic[]);
+        setMaterials((matRes.data || []) as Material[]);
+      } catch (err) {
+        console.error("Failed to load materials data:", err);
+      } finally {
+        setLoading(false);
+      }
     };
     load();
   }, []);
