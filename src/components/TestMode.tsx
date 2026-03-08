@@ -478,7 +478,7 @@ export default function TestMode() {
           <p className="text-muted-foreground text-sm mt-1">
             {Math.round((totalScore / maxScore) * 100)}% · {totalScore >= maxScore * 0.7 ? "Отлично! 🎉" : totalScore >= maxScore * 0.5 ? "Добре! 👍" : "Продължавай да учиш! 💪"}
           </p>
-          {isBelExam && (
+          {isExam && (
             <div className="flex justify-center gap-6 mt-3 text-sm">
               <div>
                 <span className="text-muted-foreground">Модул 1: </span>
