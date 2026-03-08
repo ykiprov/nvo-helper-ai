@@ -113,6 +113,15 @@ export default function AdminPanel() {
     setSaving(false);
   };
 
+  const saveTopic = async (id: string) => {
+    const { error } = await supabase.from("topics").update({
+      name: editTopicData.name, description: editTopicData.description || null,
+      subject: editTopicData.subject,
+    }).eq("id", id);
+    if (error) toast.error(error.message);
+    else { toast.success("Темата е запазена!"); setEditingTopic(null); fetchData(); }
+  };
+
   const deleteTopic = async (id: string) => {
     await supabase.from("topics").delete().eq("id", id);
     toast.success("Темата е изтрита!");
