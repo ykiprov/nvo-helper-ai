@@ -346,35 +346,43 @@ export default function TestMode() {
         <h2 className="text-2xl font-display font-bold text-foreground text-center mb-2">🎯 Режим Тест</h2>
         <p className="text-muted-foreground text-center mb-8">Избери какъв тест искаш да решиш</p>
 
-        {/* Exam simulation */}
+        {/* Configured NVO exams */}
         <div className="mb-8">
-          <h3 className="font-display font-semibold text-lg text-foreground mb-4 flex items-center gap-2">📝 Пробна матура (НВО формат)</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <button onClick={() => startExamTest("bel")}
-              className="bg-card rounded-2xl shadow-card p-6 text-left hover:shadow-elevated transition-all group">
-              <div className="text-3xl mb-2">🇧🇬</div>
-              <h4 className="font-display font-semibold text-foreground group-hover:text-primary transition-colors">НВО по БЕЛ</h4>
-              <p className="text-sm text-muted-foreground mt-1">
-                Модул 1: До 25 въпроса (тест + кратък отговор) — 65 точки
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Модул 2: Преразказ с дидактическа задача — 35 точки
-              </p>
-              <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
-                <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> М1: 60 мин.</span>
-                <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> М2: 90 мин.</span>
-                <span>Общо: 100 т.</span>
-              </div>
-            </button>
+          <h3 className="font-display font-semibold text-lg text-foreground mb-4 flex items-center gap-2">📝 Пробни матури (НВО формат)</h3>
+          {nvoExams.length === 0 ? (
+            <p className="text-sm text-muted-foreground bg-card rounded-2xl shadow-card p-6">Все още няма конфигурирани пробни НВО-та. Учителите могат да ги създадат от админ панела.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {nvoExams.map(exam => {
+                const examMods = nvoModules.filter(m => m.exam_id === exam.id).sort((a, b) => a.module_number - b.module_number);
+                const totalQuestions = examMods.reduce((sum, m) =>
+                  sum + nvoModuleQuestions.filter(mq => mq.module_id === m.id).length, 0);
+                const totalPoints = examMods.reduce((sum, m) => sum + m.max_points, 0);
 
-            <button onClick={() => startExamTest("math")}
-              className="bg-card rounded-2xl shadow-card p-6 text-left hover:shadow-elevated transition-all group">
-              <div className="text-3xl mb-2">📐</div>
-              <h4 className="font-display font-semibold text-foreground group-hover:text-primary transition-colors">НВО по Математика</h4>
-              <p className="text-sm text-muted-foreground mt-1">20 затворени + 5 отворени задачи</p>
-              <div className="flex items-center gap-1 text-xs text-muted-foreground mt-2"><Clock className="w-3 h-3" /> 120 мин.</div>
-            </button>
-          </div>
+                return (
+                  <button key={exam.id} onClick={() => startExamTest(exam.id)} disabled={totalQuestions === 0}
+                    className="bg-card rounded-2xl shadow-card p-6 text-left hover:shadow-elevated transition-all group disabled:opacity-50">
+                    <div className="text-3xl mb-2">{exam.subject === "bel" ? "🇧🇬" : "📐"}</div>
+                    <h4 className="font-display font-semibold text-foreground group-hover:text-primary transition-colors">{exam.title}</h4>
+                    {examMods.map(m => {
+                      const qCount = nvoModuleQuestions.filter(mq => mq.module_id === m.id).length;
+                      return (
+                        <p key={m.id} className="text-sm text-muted-foreground mt-1">
+                          Модул {m.module_number}: {qCount} въпроса — {m.max_points} точки
+                        </p>
+                      );
+                    })}
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
+                      {examMods.map(m => (
+                        <span key={m.id} className="flex items-center gap-1"><Clock className="w-3 h-3" /> М{m.module_number}: {m.time_minutes} мин.</span>
+                      ))}
+                      <span>Общо: {totalPoints} т.</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Full test */}
