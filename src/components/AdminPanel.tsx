@@ -74,6 +74,8 @@ export default function AdminPanel() {
   const [editMatData, setEditMatData] = useState<Partial<Material>>({});
   const [editingQ, setEditingQ] = useState<string | null>(null);
   const [editQData, setEditQData] = useState<Partial<QuizQuestion>>({});
+  const [editingTopic, setEditingTopic] = useState<string | null>(null);
+  const [editTopicData, setEditTopicData] = useState<Partial<Topic>>({});
 
   useEffect(() => { fetchData(); }, []);
 
@@ -109,6 +111,15 @@ export default function AdminPanel() {
     if (error) toast.error(error.message);
     else { toast.success("Темата е добавена!"); setTopicName(""); setTopicDesc(""); fetchData(); }
     setSaving(false);
+  };
+
+  const saveTopic = async (id: string) => {
+    const { error } = await supabase.from("topics").update({
+      name: editTopicData.name, description: editTopicData.description || null,
+      subject: editTopicData.subject,
+    }).eq("id", id);
+    if (error) toast.error(error.message);
+    else { toast.success("Темата е запазена!"); setEditingTopic(null); fetchData(); }
   };
 
   const deleteTopic = async (id: string) => {
@@ -251,7 +262,21 @@ export default function AdminPanel() {
               <div key={s}>
                 <h4 className="font-display font-semibold text-foreground mb-3">{s === "bel" ? "🇧🇬 БЕЛ" : "📐 Математика"}</h4>
                 <div className="space-y-2">
-                  {subTopics.map(t => (
+                  {subTopics.map(t => editingTopic === t.id ? (
+                    <div key={t.id} className="bg-card rounded-xl shadow-card p-4 space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <input value={editTopicData.name || ""} onChange={e => setEditTopicData({...editTopicData, name: e.target.value})} className={`${inputCls} w-full`} placeholder="Име" />
+                        <select value={editTopicData.subject} onChange={e => setEditTopicData({...editTopicData, subject: e.target.value as SubjectType})} className={inputCls}>
+                          <option value="bel">БЕЛ</option><option value="math">Математика</option>
+                        </select>
+                      </div>
+                      <textarea value={editTopicData.description || ""} onChange={e => setEditTopicData({...editTopicData, description: e.target.value})} rows={2} className={`w-full ${inputCls} resize-y`} placeholder="Описание..." />
+                      <div className="flex gap-2">
+                        <button onClick={() => saveTopic(t.id)} className="gradient-primary text-primary-foreground font-semibold px-4 py-2 rounded-xl text-sm flex items-center gap-1"><Save className="w-3 h-3" /> Запази</button>
+                        <button onClick={() => setEditingTopic(null)} className="bg-muted text-muted-foreground px-4 py-2 rounded-xl text-sm flex items-center gap-1"><X className="w-3 h-3" /> Откажи</button>
+                      </div>
+                    </div>
+                  ) : (
                     <div key={t.id} className="bg-card rounded-xl shadow-card p-4 flex items-center justify-between">
                       <div>
                         <span className="font-medium text-foreground">{t.name}</span>
@@ -260,7 +285,10 @@ export default function AdminPanel() {
                           {materials.filter(m => m.topic_id === t.id).length} материала · {questions.filter(q => q.topic_id === t.id).length} въпроса
                         </p>
                       </div>
-                      <button onClick={() => deleteTopic(t.id)} className="text-muted-foreground hover:text-destructive transition-colors"><Trash2 className="w-4 h-4" /></button>
+                      <div className="flex gap-1">
+                        <button onClick={() => { setEditingTopic(t.id); setEditTopicData(t); }} className="text-muted-foreground hover:text-foreground transition-colors"><Edit2 className="w-4 h-4" /></button>
+                        <button onClick={() => deleteTopic(t.id)} className="text-muted-foreground hover:text-destructive transition-colors"><Trash2 className="w-4 h-4" /></button>
+                      </div>
                     </div>
                   ))}
                 </div>
