@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, CheckCircle, XCircle, Loader2, Send, Award, Clock } from "lucide-react";
+import { ArrowLeft, CheckCircle, XCircle, Loader2, Send, Award, Clock, BookOpen } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
@@ -36,6 +36,7 @@ interface GradeResult {
 }
 
 type TestType = "topic" | "full" | "exam";
+type ExamModule = 1 | 2;
 
 export default function TestMode() {
   const [topics, setTopics] = useState<Topic[]>([]);
@@ -51,6 +52,16 @@ export default function TestMode() {
   const [answers, setAnswers] = useState<Record<string, { type: "mc"; value: number } | { type: "open"; value: string; grade?: GradeResult }>>({});
   const [submitted, setSubmitted] = useState(false);
   const [grading, setGrading] = useState<string | null>(null);
+
+  // NVO BEL exam module state
+  const [examModule, setExamModule] = useState<ExamModule>(1);
+  const [module1Questions, setModule1Questions] = useState<QuizQuestion[]>([]);
+  const [module2Questions, setModule2Questions] = useState<QuizQuestion[]>([]);
+  const [module1Submitted, setModule1Submitted] = useState(false);
+
+  // Timer
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -72,6 +83,29 @@ export default function TestMode() {
     load();
   }, []);
 
+  // Timer effect
+  useEffect(() => {
+    if (timeLeft !== null && timeLeft > 0 && !submitted && !(testType === "exam" && selectedSubject === "bel" && examModule === 1 && module1Submitted)) {
+      timerRef.current = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev !== null && prev <= 1) {
+            clearInterval(timerRef.current!);
+            toast.warning("Времето изтече!");
+            return 0;
+          }
+          return prev !== null ? prev - 1 : null;
+        });
+      }, 1000);
+      return () => { if (timerRef.current) clearInterval(timerRef.current); };
+    }
+  }, [timeLeft, submitted, module1Submitted, examModule]);
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
+
   const startTopicTest = (topic: Topic) => {
     const qs = allQuestions.filter(q => q.topic_id === topic.id);
     const shuffled = [...qs].sort(() => Math.random() - 0.5).slice(0, 10);
@@ -82,6 +116,7 @@ export default function TestMode() {
     setCurrentIdx(0);
     setAnswers({});
     setSubmitted(false);
+    setTimeLeft(null);
   };
 
   const startFullTest = (subject: SubjectType) => {
@@ -94,25 +129,71 @@ export default function TestMode() {
     setCurrentIdx(0);
     setAnswers({});
     setSubmitted(false);
+    setTimeLeft(null);
   };
 
   const startExamTest = (subject: SubjectType) => {
     const qs = allQuestions.filter(q => q.subject === subject);
-    // Exam format: first multiple choice, then open-ended
-    const mc = qs.filter(q => q.question_type === "multiple_choice").sort(() => Math.random() - 0.5).slice(0, subject === "bel" ? 23 : 20);
-    const oe = qs.filter(q => q.question_type === "open_ended").sort(() => Math.random() - 0.5).slice(0, subject === "bel" ? 2 : 5);
-    const combined = [...mc, ...oe];
-    if (combined.length === 0) { toast.error("Няма достатъчно въпроси."); return; }
-    setTestType("exam");
-    setSelectedSubject(subject);
-    setTestQuestions(combined);
+
+    if (subject === "bel") {
+      // NVO BEL format: Module 1 (65 pts, 60 min) = up to 25 questions (MC + short open)
+      // Module 2 (35 pts, 90 min) = retelling/essay task (open_ended with high max_points)
+      const mcQuestions = qs.filter(q => q.question_type === "multiple_choice").sort(() => Math.random() - 0.5);
+      const shortOpen = qs.filter(q => q.question_type === "open_ended" && q.max_points <= 5).sort(() => Math.random() - 0.5);
+      const essayQuestions = qs.filter(q => q.question_type === "open_ended" && q.max_points > 5).sort(() => Math.random() - 0.5);
+
+      // Module 1: ~20 MC + ~5 short open = 25 questions total
+      const mod1MC = mcQuestions.slice(0, 20);
+      const mod1Open = shortOpen.slice(0, 5);
+      const mod1 = [...mod1MC, ...mod1Open];
+
+      // Module 2: 1 essay/retelling question
+      const mod2 = essayQuestions.slice(0, 1);
+
+      if (mod1.length === 0) { toast.error("Няма достатъчно въпроси за Модул 1."); return; }
+
+      setModule1Questions(mod1);
+      setModule2Questions(mod2);
+      setExamModule(1);
+      setModule1Submitted(false);
+      setTestQuestions(mod1);
+      setTestType("exam");
+      setSelectedSubject(subject);
+      setCurrentIdx(0);
+      setAnswers({});
+      setSubmitted(false);
+      setTimeLeft(60 * 60); // 60 minutes for module 1
+    } else {
+      // Math format: MC + open ended
+      const mc = qs.filter(q => q.question_type === "multiple_choice").sort(() => Math.random() - 0.5).slice(0, 20);
+      const oe = qs.filter(q => q.question_type === "open_ended").sort(() => Math.random() - 0.5).slice(0, 5);
+      const combined = [...mc, ...oe];
+      if (combined.length === 0) { toast.error("Няма достатъчно въпроси."); return; }
+      setTestType("exam");
+      setSelectedSubject(subject);
+      setTestQuestions(combined);
+      setCurrentIdx(0);
+      setAnswers({});
+      setSubmitted(false);
+      setTimeLeft(120 * 60); // 120 min
+    }
+  };
+
+  const goToModule2 = () => {
+    if (module2Questions.length === 0) {
+      toast.info("Няма въпроси за Модул 2. Тестът е завършен.");
+      setSubmitted(true);
+      return;
+    }
+    setModule1Submitted(true);
+    setExamModule(2);
+    setTestQuestions(module2Questions);
     setCurrentIdx(0);
-    setAnswers({});
-    setSubmitted(false);
+    setTimeLeft(90 * 60); // 90 minutes for module 2
   };
 
   const selectMC = (qId: string, idx: number) => {
-    if (submitted) return;
+    if (submitted || (testType === "exam" && selectedSubject === "bel" && examModule === 1 && module1Submitted)) return;
     setAnswers(prev => ({ ...prev, [qId]: { type: "mc", value: idx } }));
   };
 
@@ -122,10 +203,22 @@ export default function TestMode() {
   };
 
   const submitTest = async () => {
+    // For BEL exam module 1 → go to module 2
+    if (testType === "exam" && selectedSubject === "bel" && examModule === 1 && !module1Submitted) {
+      goToModule2();
+      return;
+    }
+
     setSubmitted(true);
+    if (timerRef.current) clearInterval(timerRef.current);
+
+    // Determine all questions for grading
+    const allTestQuestions = testType === "exam" && selectedSubject === "bel"
+      ? [...module1Questions, ...module2Questions]
+      : testQuestions;
 
     // Grade open-ended questions
-    const openQs = testQuestions.filter(q => q.question_type === "open_ended" && answers[q.id]?.type === "open" && (answers[q.id] as any).value.trim());
+    const openQs = allTestQuestions.filter(q => q.question_type === "open_ended" && answers[q.id]?.type === "open" && (answers[q.id] as any).value.trim());
     for (const q of openQs) {
       setGrading(q.id);
       try {
@@ -157,15 +250,21 @@ export default function TestMode() {
     }
     setGrading(null);
 
+    // For BEL exam, show all questions
+    if (testType === "exam" && selectedSubject === "bel") {
+      setTestQuestions([...module1Questions, ...module2Questions]);
+      setCurrentIdx(0);
+    }
+
     // Save attempt
-    const totalScore = testQuestions.reduce((sum, q) => {
+    const totalScore = allTestQuestions.reduce((sum, q) => {
       const a = answers[q.id];
       if (!a) return sum;
       if (a.type === "mc" && a.value === q.correct_answer) return sum + q.max_points;
       if (a.type === "open" && a.grade) return sum + a.grade.score;
       return sum;
     }, 0);
-    const maxScore = testQuestions.reduce((sum, q) => sum + q.max_points, 0);
+    const maxScore = allTestQuestions.reduce((sum, q) => sum + q.max_points, 0);
 
     await supabase.from("test_attempts").insert([{
       test_type: testType,
@@ -178,18 +277,25 @@ export default function TestMode() {
     }]);
   };
 
-  const totalScore = testQuestions.reduce((sum, q) => {
+  const allTestQuestionsForScore = testType === "exam" && selectedSubject === "bel" && submitted
+    ? [...module1Questions, ...module2Questions]
+    : testQuestions;
+
+  const totalScore = allTestQuestionsForScore.reduce((sum, q) => {
     const a = answers[q.id];
     if (!a) return sum;
     if (a.type === "mc" && a.value === q.correct_answer) return sum + q.max_points;
     if (a.type === "open" && a.grade) return sum + a.grade.score;
     return sum;
   }, 0);
-  const maxScore = testQuestions.reduce((sum, q) => sum + q.max_points, 0);
+  const maxScore = allTestQuestionsForScore.reduce((sum, q) => sum + q.max_points, 0);
 
   const reset = () => {
     setTestType(null); setSelectedSubject(null); setSelectedTopic(null);
     setTestQuestions([]); setCurrentIdx(0); setAnswers({}); setSubmitted(false);
+    setExamModule(1); setModule1Questions([]); setModule2Questions([]); setModule1Submitted(false);
+    setTimeLeft(null);
+    if (timerRef.current) clearInterval(timerRef.current);
   };
 
   if (loading) {
@@ -210,17 +316,30 @@ export default function TestMode() {
         <div className="mb-8">
           <h3 className="font-display font-semibold text-lg text-foreground mb-4 flex items-center gap-2">📝 Пробна матура (НВО формат)</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {(["bel", "math"] as const).map(s => (
-              <button key={s} onClick={() => startExamTest(s)}
-                className="bg-card rounded-2xl shadow-card p-6 text-left hover:shadow-elevated transition-all group">
-                <div className="text-3xl mb-2">{s === "bel" ? "🇧🇬" : "📐"}</div>
-                <h4 className="font-display font-semibold text-foreground group-hover:text-primary transition-colors">{s === "bel" ? "НВО по БЕЛ" : "НВО по Математика"}</h4>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {s === "bel" ? "23 затворени + 2 отворени въпроса" : "20 затворени + 5 отворени задачи"}
-                </p>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground mt-2"><Clock className="w-3 h-3" /> ~{s === "bel" ? "150" : "120"} мин.</div>
-              </button>
-            ))}
+            <button onClick={() => startExamTest("bel")}
+              className="bg-card rounded-2xl shadow-card p-6 text-left hover:shadow-elevated transition-all group">
+              <div className="text-3xl mb-2">🇧🇬</div>
+              <h4 className="font-display font-semibold text-foreground group-hover:text-primary transition-colors">НВО по БЕЛ</h4>
+              <p className="text-sm text-muted-foreground mt-1">
+                Модул 1: До 25 въпроса (тест + кратък отговор) — 65 точки
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Модул 2: Преразказ с дидактическа задача — 35 точки
+              </p>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
+                <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> М1: 60 мин.</span>
+                <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> М2: 90 мин.</span>
+                <span>Общо: 100 т.</span>
+              </div>
+            </button>
+
+            <button onClick={() => startExamTest("math")}
+              className="bg-card rounded-2xl shadow-card p-6 text-left hover:shadow-elevated transition-all group">
+              <div className="text-3xl mb-2">📐</div>
+              <h4 className="font-display font-semibold text-foreground group-hover:text-primary transition-colors">НВО по Математика</h4>
+              <p className="text-sm text-muted-foreground mt-1">20 затворени + 5 отворени задачи</p>
+              <div className="flex items-center gap-1 text-xs text-muted-foreground mt-2"><Clock className="w-3 h-3" /> 120 мин.</div>
+            </button>
           </div>
         </div>
 
@@ -271,18 +390,36 @@ export default function TestMode() {
   // Test in progress
   const q = testQuestions[currentIdx];
   const answered = answers[q?.id];
+  const isBelExam = testType === "exam" && selectedSubject === "bel";
 
   return (
     <section className="max-w-3xl mx-auto px-4 py-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <button onClick={reset} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-4 h-4" /> Назад
         </button>
         <div className="text-sm font-medium text-foreground">
-          {testType === "exam" ? "📝 Пробна матура" : testType === "full" ? "📋 Пълен тест" : `🎯 ${selectedTopic?.name}`}
+          {isBelExam ? `📝 Пробна матура БЕЛ — Модул ${submitted ? "1+2" : examModule}` :
+           testType === "exam" ? "📝 Пробна матура" :
+           testType === "full" ? "📋 Пълен тест" :
+           `🎯 ${selectedTopic?.name}`}
         </div>
         <div className="text-sm text-muted-foreground">{currentIdx + 1} / {testQuestions.length}</div>
+      </div>
+
+      {/* Timer + Module info */}
+      <div className="flex items-center justify-between mb-4">
+        {isBelExam && !submitted && (
+          <div className="text-xs bg-primary/10 text-primary px-3 py-1 rounded-full font-medium">
+            {examModule === 1 ? "Модул 1 · Тест (65 т.) · 60 мин." : "Модул 2 · Преразказ (35 т.) · 90 мин."}
+          </div>
+        )}
+        {timeLeft !== null && !submitted && (
+          <div className={`text-sm font-mono font-bold px-3 py-1 rounded-full ${timeLeft < 300 ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"}`}>
+            <Clock className="w-3 h-3 inline mr-1" />{formatTime(timeLeft)}
+          </div>
+        )}
       </div>
 
       {/* Progress bar */}
@@ -300,8 +437,45 @@ export default function TestMode() {
           <p className="text-muted-foreground text-sm mt-1">
             {Math.round((totalScore / maxScore) * 100)}% · {totalScore >= maxScore * 0.7 ? "Отлично! 🎉" : totalScore >= maxScore * 0.5 ? "Добре! 👍" : "Продължавай да учиш! 💪"}
           </p>
+          {isBelExam && (
+            <div className="flex justify-center gap-6 mt-3 text-sm">
+              <div>
+                <span className="text-muted-foreground">Модул 1: </span>
+                <span className="font-bold text-foreground">
+                  {module1Questions.reduce((s, mq) => {
+                    const a = answers[mq.id];
+                    if (!a) return s;
+                    if (a.type === "mc" && a.value === mq.correct_answer) return s + mq.max_points;
+                    if (a.type === "open" && a.grade) return s + a.grade.score;
+                    return s;
+                  }, 0)} / {module1Questions.reduce((s, mq) => s + mq.max_points, 0)}
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Модул 2: </span>
+                <span className="font-bold text-foreground">
+                  {module2Questions.reduce((s, mq) => {
+                    const a = answers[mq.id];
+                    if (!a) return s;
+                    if (a.type === "open" && a.grade) return s + a.grade.score;
+                    return s;
+                  }, 0)} / {module2Questions.reduce((s, mq) => s + mq.max_points, 0)}
+                </span>
+              </div>
+            </div>
+          )}
           {grading && <p className="text-sm text-accent mt-2 flex items-center justify-center gap-1"><Loader2 className="w-4 h-4 animate-spin" /> Оценяване на отворени въпроси...</p>}
         </motion.div>
+      )}
+
+      {/* Module 2 intro */}
+      {isBelExam && examModule === 2 && !submitted && currentIdx === 0 && (
+        <div className="bg-accent/10 rounded-2xl p-5 mb-4">
+          <h4 className="font-display font-bold text-foreground mb-2 flex items-center gap-2"><BookOpen className="w-5 h-5 text-accent" /> Модул 2 — Преразказ</h4>
+          <p className="text-sm text-muted-foreground">
+            Прочетете текста и изпълнете дидактическата задача. Напишете подробен преразказ, като следвате указанията. Имате 90 минути.
+          </p>
+        </div>
       )}
 
       {/* Question */}
@@ -312,6 +486,11 @@ export default function TestMode() {
             <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">Въпрос {currentIdx + 1}</span>
             <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">{q.max_points} т.</span>
             {q.question_type === "open_ended" && <span className="text-xs bg-accent/20 text-accent px-2 py-0.5 rounded-full">Отворен въпрос</span>}
+            {isBelExam && submitted && (
+              <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
+                {module1Questions.includes(q) ? "Модул 1" : "Модул 2"}
+              </span>
+            )}
           </div>
           <p className="font-medium text-foreground mb-4 whitespace-pre-wrap">{q.question}</p>
 
@@ -340,8 +519,8 @@ export default function TestMode() {
               <textarea
                 value={answered?.type === "open" ? answered.value : ""}
                 onChange={e => setOpenAnswer(q.id, e.target.value)}
-                placeholder="Напиши отговора си тук..."
-                rows={8}
+                placeholder={q.max_points > 5 ? "Напишете преразказа / съчинението тук..." : "Напиши отговора си тук..."}
+                rows={q.max_points > 5 ? 20 : 8}
                 className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-y"
                 disabled={submitted}
               />
@@ -399,7 +578,8 @@ export default function TestMode() {
         ) : !submitted ? (
           <button onClick={submitTest}
             className="gradient-primary text-primary-foreground font-semibold px-6 py-2 rounded-xl text-sm hover:opacity-90 transition-opacity flex items-center gap-1">
-            <Send className="w-4 h-4" /> Предай теста
+            <Send className="w-4 h-4" />
+            {isBelExam && examModule === 1 ? "Към Модул 2 →" : "Предай теста"}
           </button>
         ) : (
           <button onClick={reset}

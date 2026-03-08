@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { BookOpen, Calculator, ChevronDown, ChevronUp, CheckCircle, XCircle, Tag } from "lucide-react";
+import { BookOpen, Calculator, ChevronDown, ChevronUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 type SubjectType = "bel" | "math";
@@ -19,45 +19,22 @@ interface Material {
   topic_id: string | null;
 }
 
-interface QuizQuestion {
-  id: string;
-  question: string;
-  options: string[];
-  correct_answer: number;
-  subject: SubjectType;
-  question_type: string;
-  max_points: number;
-  topic_id: string | null;
-  explanation: string | null;
-}
-
 export default function MaterialsSection() {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
-  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [filterSubject, setFilterSubject] = useState<"all" | SubjectType>("all");
   const [filterTopic, setFilterTopic] = useState<string | null>(null);
   const [expandedMat, setExpandedMat] = useState<string | null>(null);
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, number | null>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
-      const [topRes, matRes, qRes] = await Promise.all([
+      const [topRes, matRes] = await Promise.all([
         supabase.from("topics").select("*").order("subject").order("sort_order"),
         supabase.from("materials").select("*").order("created_at", { ascending: false }),
-        supabase.from("quiz_questions").select("*").order("created_at", { ascending: false }),
       ]);
       setTopics((topRes.data || []) as Topic[]);
       setMaterials((matRes.data || []) as Material[]);
-      setQuestions(
-        (qRes.data || []).map((q: any) => ({
-          ...q,
-          options: Array.isArray(q.options) ? q.options : [],
-          question_type: q.question_type || "multiple_choice",
-          max_points: q.max_points || 1,
-        })) as QuizQuestion[]
-      );
       setLoading(false);
     };
     load();
@@ -69,16 +46,6 @@ export default function MaterialsSection() {
     if (filterTopic && m.topic_id !== filterTopic) return false;
     return true;
   });
-  const filteredQuestions = questions.filter(q => {
-    if (filterSubject !== "all" && q.subject !== filterSubject) return false;
-    if (filterTopic && q.topic_id !== filterTopic) return false;
-    if (q.question_type !== "multiple_choice") return false; // Only show MC in browse mode
-    return true;
-  });
-
-  const selectAnswer = (qId: string, idx: number) => {
-    setSelectedAnswers(prev => ({ ...prev, [qId]: prev[qId] === idx ? null : idx }));
-  };
 
   const topicName = (id: string | null) => topics.find(t => t.id === id)?.name;
 
@@ -88,8 +55,8 @@ export default function MaterialsSection() {
 
   return (
     <section className="max-w-4xl mx-auto px-4 py-8">
-      <h2 className="text-2xl font-display font-bold text-foreground text-center mb-2">Учебни материали</h2>
-      <p className="text-muted-foreground text-center mb-6">Материали и тестове за подготовка</p>
+      <h2 className="text-2xl font-display font-bold text-foreground text-center mb-2">📚 Учебни материали</h2>
+      <p className="text-muted-foreground text-center mb-6">Четене и преговор по теми — подготви се преди да решаваш тестове</p>
 
       {/* Subject filter */}
       <div className="flex justify-center gap-2 mb-4">
@@ -119,79 +86,34 @@ export default function MaterialsSection() {
         </div>
       )}
 
-      {filteredMaterials.length === 0 && filteredQuestions.length === 0 && (
+      {filteredMaterials.length === 0 && (
         <p className="text-center text-muted-foreground py-12">Все още няма добавени материали за тази тема.</p>
       )}
 
       {/* Materials */}
       {filteredMaterials.length > 0 && (
-        <div className="mb-8">
-          <h3 className="font-display font-semibold text-lg text-foreground mb-4 flex items-center gap-2">
-            <BookOpen className="w-5 h-5" /> Материали за четене
-          </h3>
-          <div className="space-y-3">
-            {filteredMaterials.map(m => (
-              <motion.div key={m.id} layout className="bg-card rounded-2xl shadow-card overflow-hidden">
-                <button onClick={() => setExpandedMat(expandedMat === m.id ? null : m.id)} className="w-full flex items-center justify-between p-5 text-left">
-                  <div className="flex items-center gap-3">
-                    {m.subject === "bel" ? <BookOpen className="w-5 h-5 text-primary" /> : <Calculator className="w-5 h-5 text-accent" />}
-                    <div>
-                      <span className="font-display font-semibold text-foreground">{m.title}</span>
-                      {m.topic_id && <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">{topicName(m.topic_id)}</span>}
-                    </div>
+        <div className="space-y-3">
+          {filteredMaterials.map(m => (
+            <motion.div key={m.id} layout className="bg-card rounded-2xl shadow-card overflow-hidden">
+              <button onClick={() => setExpandedMat(expandedMat === m.id ? null : m.id)} className="w-full flex items-center justify-between p-5 text-left">
+                <div className="flex items-center gap-3">
+                  {m.subject === "bel" ? <BookOpen className="w-5 h-5 text-primary" /> : <Calculator className="w-5 h-5 text-accent" />}
+                  <div>
+                    <span className="font-display font-semibold text-foreground">{m.title}</span>
+                    {m.topic_id && <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">{topicName(m.topic_id)}</span>}
                   </div>
-                  {expandedMat === m.id ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-                </button>
-                <AnimatePresence>
-                  {expandedMat === m.id && (
-                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="px-5 pb-5">
-                      <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap">{m.content}</div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Quiz */}
-      {filteredQuestions.length > 0 && (
-        <div>
-          <h3 className="font-display font-semibold text-lg text-foreground mb-4 flex items-center gap-2">❓ Тестови въпроси</h3>
-          <div className="space-y-4">
-            {filteredQuestions.map((q, qi) => {
-              const selected = selectedAnswers[q.id];
-              const answered = selected !== undefined && selected !== null;
-              const isCorrect = selected === q.correct_answer;
-              return (
-                <div key={q.id} className="bg-card rounded-2xl shadow-card p-5">
-                  <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <p className="font-medium text-foreground">{qi + 1}. {q.question}</p>
-                  </div>
-                  {q.topic_id && <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full mb-2 inline-block">{topicName(q.topic_id)}</span>}
-                  <div className="space-y-2">
-                    {q.options.map((opt, i) => (
-                      <button key={i} onClick={() => selectAnswer(q.id, i)}
-                        className={`w-full text-left px-4 py-2.5 rounded-xl text-sm transition-all flex items-center gap-2 ${
-                          answered && i === q.correct_answer ? "bg-secondary/20 text-secondary font-medium"
-                          : answered && i === selected && !isCorrect ? "bg-destructive/10 text-destructive"
-                          : selected === i ? "bg-primary/10 text-primary"
-                          : "bg-muted text-muted-foreground hover:bg-muted/80"
-                        }`}>
-                        {answered && i === q.correct_answer && <CheckCircle className="w-4 h-4" />}
-                        {answered && i === selected && !isCorrect && <XCircle className="w-4 h-4" />}
-                        <span>{String.fromCharCode(65 + i)}. {opt}</span>
-                      </button>
-                    ))}
-                  </div>
-                  {answered && q.explanation && (
-                    <p className="mt-3 text-sm text-muted-foreground bg-muted rounded-xl px-4 py-2">💡 {q.explanation}</p>
-                  )}
                 </div>
-              );
-            })}
-          </div>
+                {expandedMat === m.id ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+              </button>
+              <AnimatePresence>
+                {expandedMat === m.id && (
+                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="px-5 pb-5">
+                    <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap">{m.content}</div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          ))}
         </div>
       )}
     </section>
