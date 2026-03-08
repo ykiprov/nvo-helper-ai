@@ -38,10 +38,35 @@ interface GradeResult {
 type TestType = "topic" | "full" | "exam";
 type ExamModule = 1 | 2;
 
+interface NvoExam {
+  id: string;
+  title: string;
+  subject: SubjectType;
+}
+
+interface NvoExamModule {
+  id: string;
+  exam_id: string;
+  module_number: number;
+  time_minutes: number;
+  max_points: number;
+}
+
+interface NvoModuleQuestion {
+  module_id: string;
+  question_id: string;
+  sort_order: number;
+}
+
 export default function TestMode() {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [allQuestions, setAllQuestions] = useState<QuizQuestion[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Configured exams from DB
+  const [nvoExams, setNvoExams] = useState<NvoExam[]>([]);
+  const [nvoModules, setNvoModules] = useState<NvoExamModule[]>([]);
+  const [nvoModuleQuestions, setNvoModuleQuestions] = useState<NvoModuleQuestion[]>([]);
 
   // Test state
   const [testType, setTestType] = useState<TestType | null>(null);
@@ -53,11 +78,13 @@ export default function TestMode() {
   const [submitted, setSubmitted] = useState(false);
   const [grading, setGrading] = useState<string | null>(null);
 
-  // NVO BEL exam module state
+  // NVO exam module state
   const [examModule, setExamModule] = useState<ExamModule>(1);
   const [module1Questions, setModule1Questions] = useState<QuizQuestion[]>([]);
   const [module2Questions, setModule2Questions] = useState<QuizQuestion[]>([]);
   const [module1Submitted, setModule1Submitted] = useState(false);
+  const [module1Time, setModule1Time] = useState(60);
+  const [module2Time, setModule2Time] = useState(90);
 
   // Timer
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
@@ -66,9 +93,12 @@ export default function TestMode() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [tRes, qRes] = await Promise.all([
+        const [tRes, qRes, exRes, modRes, mqRes] = await Promise.all([
           supabase.from("topics").select("*").order("subject").order("sort_order"),
           supabase.from("quiz_questions").select("*").order("created_at"),
+          supabase.from("nvo_exams").select("*").order("created_at", { ascending: false }),
+          supabase.from("nvo_exam_modules").select("*"),
+          supabase.from("nvo_module_questions").select("*").order("sort_order"),
         ]);
         if (tRes.error) console.error("Topics fetch error:", tRes.error);
         if (qRes.error) console.error("Questions fetch error:", qRes.error);
@@ -81,6 +111,9 @@ export default function TestMode() {
             max_points: q.max_points || 1,
           })) as QuizQuestion[]
         );
+        setNvoExams((exRes.data || []) as NvoExam[]);
+        setNvoModules((modRes.data || []) as NvoExamModule[]);
+        setNvoModuleQuestions((mqRes.data || []) as NvoModuleQuestion[]);
       } catch (err) {
         console.error("Failed to load test data:", err);
       } finally {
@@ -92,7 +125,7 @@ export default function TestMode() {
 
   // Timer effect
   useEffect(() => {
-    if (timeLeft !== null && timeLeft > 0 && !submitted && !(testType === "exam" && selectedSubject === "bel" && examModule === 1 && module1Submitted)) {
+    if (timeLeft !== null && timeLeft > 0 && !submitted && !(testType === "exam" && examModule === 1 && module1Submitted)) {
       timerRef.current = setInterval(() => {
         setTimeLeft(prev => {
           if (prev !== null && prev <= 1) {
@@ -139,51 +172,45 @@ export default function TestMode() {
     setTimeLeft(null);
   };
 
-  const startExamTest = (subject: SubjectType) => {
-    const qs = allQuestions.filter(q => q.subject === subject);
+  const startExamTest = (examId: string) => {
+    const exam = nvoExams.find(e => e.id === examId);
+    if (!exam) return;
 
-    if (subject === "bel") {
-      // NVO BEL format: Module 1 (65 pts, 60 min) = up to 25 questions (MC + short open)
-      // Module 2 (35 pts, 90 min) = retelling/essay task (open_ended with high max_points)
-      const mcQuestions = qs.filter(q => q.question_type === "multiple_choice").sort(() => Math.random() - 0.5);
-      const shortOpen = qs.filter(q => q.question_type === "open_ended" && q.max_points <= 5).sort(() => Math.random() - 0.5);
-      const essayQuestions = qs.filter(q => q.question_type === "open_ended" && q.max_points > 5).sort(() => Math.random() - 0.5);
+    const examMods = nvoModules.filter(m => m.exam_id === examId).sort((a, b) => a.module_number - b.module_number);
+    if (examMods.length === 0) { toast.error("Това НВО няма конфигурирани модули."); return; }
 
-      // Module 1: ~20 MC + ~5 short open = 25 questions total
-      const mod1MC = mcQuestions.slice(0, 20);
-      const mod1Open = shortOpen.slice(0, 5);
-      const mod1 = [...mod1MC, ...mod1Open];
+    const mod1 = examMods.find(m => m.module_number === 1);
+    const mod2 = examMods.find(m => m.module_number === 2);
 
-      // Module 2: 1 essay/retelling question
-      const mod2 = essayQuestions.slice(0, 1);
+    const getModuleQuestions = (modId: string) => {
+      const mqIds = nvoModuleQuestions
+        .filter(mq => mq.module_id === modId)
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map(mq => mq.question_id);
+      return mqIds.map(id => allQuestions.find(q => q.id === id)).filter(Boolean) as QuizQuestion[];
+    };
 
-      if (mod1.length === 0) { toast.error("Няма достатъчно въпроси за Модул 1."); return; }
+    const mod1Qs = mod1 ? getModuleQuestions(mod1.id) : [];
+    const mod2Qs = mod2 ? getModuleQuestions(mod2.id) : [];
 
-      setModule1Questions(mod1);
-      setModule2Questions(mod2);
-      setExamModule(1);
-      setModule1Submitted(false);
-      setTestQuestions(mod1);
-      setTestType("exam");
-      setSelectedSubject(subject);
-      setCurrentIdx(0);
-      setAnswers({});
-      setSubmitted(false);
-      setTimeLeft(60 * 60); // 60 minutes for module 1
-    } else {
-      // Math format: MC + open ended
-      const mc = qs.filter(q => q.question_type === "multiple_choice").sort(() => Math.random() - 0.5).slice(0, 20);
-      const oe = qs.filter(q => q.question_type === "open_ended").sort(() => Math.random() - 0.5).slice(0, 5);
-      const combined = [...mc, ...oe];
-      if (combined.length === 0) { toast.error("Няма достатъчно въпроси."); return; }
-      setTestType("exam");
-      setSelectedSubject(subject);
-      setTestQuestions(combined);
-      setCurrentIdx(0);
-      setAnswers({});
-      setSubmitted(false);
-      setTimeLeft(120 * 60); // 120 min
+    if (mod1Qs.length === 0 && mod2Qs.length === 0) {
+      toast.error("Няма добавени въпроси в това НВО.");
+      return;
     }
+
+    setModule1Questions(mod1Qs);
+    setModule2Questions(mod2Qs);
+    setModule1Time(mod1?.time_minutes || 60);
+    setModule2Time(mod2?.time_minutes || 90);
+    setExamModule(1);
+    setModule1Submitted(false);
+    setTestQuestions(mod1Qs.length > 0 ? mod1Qs : mod2Qs);
+    setTestType("exam");
+    setSelectedSubject(exam.subject);
+    setCurrentIdx(0);
+    setAnswers({});
+    setSubmitted(false);
+    setTimeLeft((mod1?.time_minutes || 60) * 60);
   };
 
   const goToModule2 = () => {
@@ -196,11 +223,11 @@ export default function TestMode() {
     setExamModule(2);
     setTestQuestions(module2Questions);
     setCurrentIdx(0);
-    setTimeLeft(90 * 60); // 90 minutes for module 2
+    setTimeLeft(module2Time * 60);
   };
 
   const selectMC = (qId: string, idx: number) => {
-    if (submitted || (testType === "exam" && selectedSubject === "bel" && examModule === 1 && module1Submitted)) return;
+    if (submitted || (testType === "exam" && examModule === 1 && module1Submitted)) return;
     setAnswers(prev => ({ ...prev, [qId]: { type: "mc", value: idx } }));
   };
 
@@ -210,8 +237,8 @@ export default function TestMode() {
   };
 
   const submitTest = async () => {
-    // For BEL exam module 1 → go to module 2
-    if (testType === "exam" && selectedSubject === "bel" && examModule === 1 && !module1Submitted) {
+    // For exam module 1 → go to module 2
+    if (testType === "exam" && examModule === 1 && !module1Submitted && module2Questions.length > 0) {
       goToModule2();
       return;
     }
@@ -220,7 +247,7 @@ export default function TestMode() {
     if (timerRef.current) clearInterval(timerRef.current);
 
     // Determine all questions for grading
-    const allTestQuestions = testType === "exam" && selectedSubject === "bel"
+    const allTestQuestions = testType === "exam"
       ? [...module1Questions, ...module2Questions]
       : testQuestions;
 
@@ -257,8 +284,8 @@ export default function TestMode() {
     }
     setGrading(null);
 
-    // For BEL exam, show all questions
-    if (testType === "exam" && selectedSubject === "bel") {
+    // For exam, show all questions from both modules
+    if (testType === "exam") {
       setTestQuestions([...module1Questions, ...module2Questions]);
       setCurrentIdx(0);
     }
@@ -284,7 +311,7 @@ export default function TestMode() {
     }]);
   };
 
-  const allTestQuestionsForScore = testType === "exam" && selectedSubject === "bel" && submitted
+  const allTestQuestionsForScore = testType === "exam" && submitted
     ? [...module1Questions, ...module2Questions]
     : testQuestions;
 
@@ -319,35 +346,43 @@ export default function TestMode() {
         <h2 className="text-2xl font-display font-bold text-foreground text-center mb-2">🎯 Режим Тест</h2>
         <p className="text-muted-foreground text-center mb-8">Избери какъв тест искаш да решиш</p>
 
-        {/* Exam simulation */}
+        {/* Configured NVO exams */}
         <div className="mb-8">
-          <h3 className="font-display font-semibold text-lg text-foreground mb-4 flex items-center gap-2">📝 Пробна матура (НВО формат)</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <button onClick={() => startExamTest("bel")}
-              className="bg-card rounded-2xl shadow-card p-6 text-left hover:shadow-elevated transition-all group">
-              <div className="text-3xl mb-2">🇧🇬</div>
-              <h4 className="font-display font-semibold text-foreground group-hover:text-primary transition-colors">НВО по БЕЛ</h4>
-              <p className="text-sm text-muted-foreground mt-1">
-                Модул 1: До 25 въпроса (тест + кратък отговор) — 65 точки
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Модул 2: Преразказ с дидактическа задача — 35 точки
-              </p>
-              <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
-                <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> М1: 60 мин.</span>
-                <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> М2: 90 мин.</span>
-                <span>Общо: 100 т.</span>
-              </div>
-            </button>
+          <h3 className="font-display font-semibold text-lg text-foreground mb-4 flex items-center gap-2">📝 Пробни матури (НВО формат)</h3>
+          {nvoExams.length === 0 ? (
+            <p className="text-sm text-muted-foreground bg-card rounded-2xl shadow-card p-6">Все още няма конфигурирани пробни НВО-та. Учителите могат да ги създадат от админ панела.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {nvoExams.map(exam => {
+                const examMods = nvoModules.filter(m => m.exam_id === exam.id).sort((a, b) => a.module_number - b.module_number);
+                const totalQuestions = examMods.reduce((sum, m) =>
+                  sum + nvoModuleQuestions.filter(mq => mq.module_id === m.id).length, 0);
+                const totalPoints = examMods.reduce((sum, m) => sum + m.max_points, 0);
 
-            <button onClick={() => startExamTest("math")}
-              className="bg-card rounded-2xl shadow-card p-6 text-left hover:shadow-elevated transition-all group">
-              <div className="text-3xl mb-2">📐</div>
-              <h4 className="font-display font-semibold text-foreground group-hover:text-primary transition-colors">НВО по Математика</h4>
-              <p className="text-sm text-muted-foreground mt-1">20 затворени + 5 отворени задачи</p>
-              <div className="flex items-center gap-1 text-xs text-muted-foreground mt-2"><Clock className="w-3 h-3" /> 120 мин.</div>
-            </button>
-          </div>
+                return (
+                  <button key={exam.id} onClick={() => startExamTest(exam.id)} disabled={totalQuestions === 0}
+                    className="bg-card rounded-2xl shadow-card p-6 text-left hover:shadow-elevated transition-all group disabled:opacity-50">
+                    <div className="text-3xl mb-2">{exam.subject === "bel" ? "🇧🇬" : "📐"}</div>
+                    <h4 className="font-display font-semibold text-foreground group-hover:text-primary transition-colors">{exam.title}</h4>
+                    {examMods.map(m => {
+                      const qCount = nvoModuleQuestions.filter(mq => mq.module_id === m.id).length;
+                      return (
+                        <p key={m.id} className="text-sm text-muted-foreground mt-1">
+                          Модул {m.module_number}: {qCount} въпроса — {m.max_points} точки
+                        </p>
+                      );
+                    })}
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
+                      {examMods.map(m => (
+                        <span key={m.id} className="flex items-center gap-1"><Clock className="w-3 h-3" /> М{m.module_number}: {m.time_minutes} мин.</span>
+                      ))}
+                      <span>Общо: {totalPoints} т.</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Full test */}
@@ -397,7 +432,7 @@ export default function TestMode() {
   // Test in progress
   const q = testQuestions[currentIdx];
   const answered = answers[q?.id];
-  const isBelExam = testType === "exam" && selectedSubject === "bel";
+  const isExam = testType === "exam";
 
   return (
     <section className="max-w-3xl mx-auto px-4 py-8">
@@ -407,8 +442,7 @@ export default function TestMode() {
           <ArrowLeft className="w-4 h-4" /> Назад
         </button>
         <div className="text-sm font-medium text-foreground">
-          {isBelExam ? `📝 Пробна матура БЕЛ — Модул ${submitted ? "1+2" : examModule}` :
-           testType === "exam" ? "📝 Пробна матура" :
+          {isExam ? `📝 Пробна матура ${selectedSubject === "bel" ? "БЕЛ" : "Математика"} — Модул ${submitted ? "1+2" : examModule}` :
            testType === "full" ? "📋 Пълен тест" :
            `🎯 ${selectedTopic?.name}`}
         </div>
@@ -417,9 +451,9 @@ export default function TestMode() {
 
       {/* Timer + Module info */}
       <div className="flex items-center justify-between mb-4">
-        {isBelExam && !submitted && (
+        {isExam && !submitted && (
           <div className="text-xs bg-primary/10 text-primary px-3 py-1 rounded-full font-medium">
-            {examModule === 1 ? "Модул 1 · Тест (65 т.) · 60 мин." : "Модул 2 · Преразказ (35 т.) · 90 мин."}
+            Модул {examModule} · {examModule === 1 ? `${module1Time} мин.` : `${module2Time} мин.`}
           </div>
         )}
         {timeLeft !== null && !submitted && (
@@ -444,7 +478,7 @@ export default function TestMode() {
           <p className="text-muted-foreground text-sm mt-1">
             {Math.round((totalScore / maxScore) * 100)}% · {totalScore >= maxScore * 0.7 ? "Отлично! 🎉" : totalScore >= maxScore * 0.5 ? "Добре! 👍" : "Продължавай да учиш! 💪"}
           </p>
-          {isBelExam && (
+          {isExam && (
             <div className="flex justify-center gap-6 mt-3 text-sm">
               <div>
                 <span className="text-muted-foreground">Модул 1: </span>
@@ -476,9 +510,9 @@ export default function TestMode() {
       )}
 
       {/* Module 2 intro */}
-      {isBelExam && examModule === 2 && !submitted && currentIdx === 0 && (
+      {isExam && examModule === 2 && !submitted && currentIdx === 0 && (
         <div className="bg-accent/10 rounded-2xl p-5 mb-4">
-          <h4 className="font-display font-bold text-foreground mb-2 flex items-center gap-2"><BookOpen className="w-5 h-5 text-accent" /> Модул 2 — Преразказ</h4>
+          <h4 className="font-display font-bold text-foreground mb-2 flex items-center gap-2"><BookOpen className="w-5 h-5 text-accent" /> Модул 2</h4>
           <p className="text-sm text-muted-foreground">
             Прочетете текста и изпълнете дидактическата задача. Напишете подробен преразказ, като следвате указанията. Имате 90 минути.
           </p>
@@ -493,7 +527,7 @@ export default function TestMode() {
             <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">Въпрос {currentIdx + 1}</span>
             <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">{q.max_points} т.</span>
             {q.question_type === "open_ended" && <span className="text-xs bg-accent/20 text-accent px-2 py-0.5 rounded-full">Отворен въпрос</span>}
-            {isBelExam && submitted && (
+            {isExam && submitted && (
               <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
                 {module1Questions.includes(q) ? "Модул 1" : "Модул 2"}
               </span>
@@ -586,7 +620,7 @@ export default function TestMode() {
           <button onClick={submitTest}
             className="gradient-primary text-primary-foreground font-semibold px-6 py-2 rounded-xl text-sm hover:opacity-90 transition-opacity flex items-center gap-1">
             <Send className="w-4 h-4" />
-            {isBelExam && examModule === 1 ? "Към Модул 2 →" : "Предай теста"}
+            {isExam && examModule === 1 && module2Questions.length > 0 ? "Към Модул 2 →" : "Предай теста"}
           </button>
         ) : (
           <button onClick={reset}

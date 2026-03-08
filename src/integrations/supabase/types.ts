@@ -90,6 +90,98 @@ export type Database = {
           },
         ]
       }
+      nvo_exam_modules: {
+        Row: {
+          exam_id: string
+          id: string
+          max_points: number
+          module_number: number
+          time_minutes: number
+        }
+        Insert: {
+          exam_id: string
+          id?: string
+          max_points?: number
+          module_number: number
+          time_minutes?: number
+        }
+        Update: {
+          exam_id?: string
+          id?: string
+          max_points?: number
+          module_number?: number
+          time_minutes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nvo_exam_modules_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "nvo_exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nvo_exams: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          subject: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          subject: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          subject?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      nvo_module_questions: {
+        Row: {
+          id: string
+          module_id: string
+          question_id: string
+          sort_order: number
+        }
+        Insert: {
+          id?: string
+          module_id: string
+          question_id: string
+          sort_order?: number
+        }
+        Update: {
+          id?: string
+          module_id?: string
+          question_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nvo_module_questions_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "nvo_exam_modules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nvo_module_questions_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quiz_questions: {
         Row: {
           correct_answer: number

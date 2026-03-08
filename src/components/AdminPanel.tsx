@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Plus, Trash2, BookOpen, Calculator, Loader2, Upload, Edit2, Save, X, Tag } from "lucide-react";
+import ExamBuilder from "./ExamBuilder";
 import { toast } from "sonner";
 
 type SubjectType = "bel" | "math";
@@ -39,7 +40,7 @@ interface QuizQuestion {
 
 export default function AdminPanel() {
   const { user, signOut } = useAuth();
-  const [tab, setTab] = useState<"materials" | "quiz" | "topics">("topics");
+  const [tab, setTab] = useState<"materials" | "quiz" | "topics" | "exams">("topics");
   const [topics, setTopics] = useState<Topic[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -228,16 +229,18 @@ export default function AdminPanel() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-muted rounded-xl p-1 mb-6">
-        {(["topics", "materials", "quiz"] as const).map(t => (
+      <div className="flex gap-1 bg-muted rounded-xl p-1 mb-6 overflow-x-auto">
+        {(["topics", "materials", "quiz", "exams"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
-            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${tab === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
-            {t === "topics" ? `🏷️ Теми (${topics.length})` : t === "materials" ? `📚 Материали (${materials.length})` : `❓ Тестове (${questions.length})`}
+            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${tab === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
+            {t === "topics" ? `🏷️ Теми (${topics.length})` : t === "materials" ? `📚 Материали (${materials.length})` : t === "quiz" ? `❓ Въпроси (${questions.length})` : "📝 Пробни НВО"}
           </button>
         ))}
       </div>
 
-      {loading ? (
+      {tab === "exams" ? (
+        <ExamBuilder />
+      ) : loading ? (
         <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
       ) : tab === "topics" ? (
         <div className="space-y-6">
