@@ -1,71 +1,187 @@
-import { BookOpen, Calculator, PenTool, Brain } from "lucide-react";
-import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { BookOpen, Calculator, ChevronDown, ChevronUp, CheckCircle, XCircle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
-const subjects = [
-  {
-    title: "Български език",
-    icon: PenTool,
-    topics: ["Граматика", "Правопис", "Пунктуация", "Езиков анализ"],
-    color: "from-primary to-primary/80",
-  },
-  {
-    title: "Литература",
-    icon: BookOpen,
-    topics: ["Христо Ботев", "Иван Вазов", "Алеко Константинов", "Елин Пелин"],
-    color: "from-secondary to-secondary/80",
-  },
-  {
-    title: "Математика",
-    icon: Calculator,
-    topics: ["Алгебра", "Геометрия", "Уравнения", "Неравенства"],
-    color: "from-accent to-accent/80",
-  },
-  {
-    title: "Подготовка",
-    icon: Brain,
-    topics: ["Пробни тестове", "Времеви стратегии", "Чести грешки", "Съвети"],
-    color: "from-primary to-secondary",
-  },
-];
+type SubjectType = "bel" | "math";
+
+interface Material {
+  id: string;
+  title: string;
+  content: string;
+  subject: SubjectType;
+}
+
+interface QuizQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correct_answer: number;
+  subject: SubjectType;
+  explanation: string | null;
+}
 
 export default function MaterialsSection() {
-  return (
-    <section className="max-w-5xl mx-auto px-4 py-12">
-      <h2 className="text-2xl font-display font-bold text-foreground text-center mb-2">
-        Учебни материали
-      </h2>
-      <p className="text-muted-foreground text-center mb-8">
-        Избери предмет и започни подготовката
-      </p>
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  const [filter, setFilter] = useState<"all" | SubjectType>("all");
+  const [expandedMat, setExpandedMat] = useState<string | null>(null);
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, number | null>>({});
+  const [loading, setLoading] = useState(true);
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {subjects.map((subject, i) => (
-          <motion.div
-            key={subject.title}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            className="bg-card rounded-2xl p-6 shadow-card hover:shadow-elevated transition-shadow cursor-pointer group"
+  useEffect(() => {
+    const load = async () => {
+      const [matRes, qRes] = await Promise.all([
+        supabase.from("materials").select("*").order("created_at", { ascending: false }),
+        supabase.from("quiz_questions").select("*").order("created_at", { ascending: false }),
+      ]);
+      setMaterials((matRes.data as Material[]) || []);
+      setQuestions(
+        (qRes.data || []).map((q) => ({
+          ...q,
+          options: Array.isArray(q.options) ? (q.options as string[]) : [],
+        })) as QuizQuestion[]
+      );
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  const filteredMaterials = filter === "all" ? materials : materials.filter((m) => m.subject === filter);
+  const filteredQuestions = filter === "all" ? questions : questions.filter((q) => q.subject === filter);
+
+  const selectAnswer = (qId: string, idx: number) => {
+    setSelectedAnswers((prev) => ({ ...prev, [qId]: prev[qId] === idx ? null : idx }));
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-16">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <section className="max-w-4xl mx-auto px-4 py-8">
+      <h2 className="text-2xl font-display font-bold text-foreground text-center mb-2">Учебни материали</h2>
+      <p className="text-muted-foreground text-center mb-6">Материали и тестове за подготовка</p>
+
+      {/* Filter */}
+      <div className="flex justify-center gap-2 mb-8">
+        {([["all", "Всички"], ["bel", "🇧🇬 БЕЛ"], ["math", "📐 Математика"]] as const).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setFilter(key)}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+              filter === key ? "gradient-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"
+            }`}
           >
-            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${subject.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-              <subject.icon className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <h3 className="font-display font-semibold text-lg text-foreground mb-3">
-              {subject.title}
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {subject.topics.map((topic) => (
-                <span
-                  key={topic}
-                  className="text-xs bg-muted text-muted-foreground px-3 py-1 rounded-full"
-                >
-                  {topic}
-                </span>
-              ))}
-            </div>
-          </motion.div>
+            {label}
+          </button>
         ))}
       </div>
+
+      {filteredMaterials.length === 0 && filteredQuestions.length === 0 && (
+        <p className="text-center text-muted-foreground py-12">Все още няма добавени материали.</p>
+      )}
+
+      {/* Materials */}
+      {filteredMaterials.length > 0 && (
+        <div className="mb-8">
+          <h3 className="font-display font-semibold text-lg text-foreground mb-4 flex items-center gap-2">
+            <BookOpen className="w-5 h-5" /> Материали за четене
+          </h3>
+          <div className="space-y-3">
+            {filteredMaterials.map((m) => (
+              <motion.div key={m.id} layout className="bg-card rounded-2xl shadow-card overflow-hidden">
+                <button
+                  onClick={() => setExpandedMat(expandedMat === m.id ? null : m.id)}
+                  className="w-full flex items-center justify-between p-5 text-left"
+                >
+                  <div className="flex items-center gap-3">
+                    {m.subject === "bel" ? (
+                      <BookOpen className="w-5 h-5 text-primary" />
+                    ) : (
+                      <Calculator className="w-5 h-5 text-accent" />
+                    )}
+                    <span className="font-display font-semibold text-foreground">{m.title}</span>
+                  </div>
+                  {expandedMat === m.id ? (
+                    <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                  )}
+                </button>
+                <AnimatePresence>
+                  {expandedMat === m.id && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="px-5 pb-5"
+                    >
+                      <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap">
+                        {m.content}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Quiz */}
+      {filteredQuestions.length > 0 && (
+        <div>
+          <h3 className="font-display font-semibold text-lg text-foreground mb-4 flex items-center gap-2">
+            ❓ Тестови въпроси
+          </h3>
+          <div className="space-y-4">
+            {filteredQuestions.map((q, qi) => {
+              const selected = selectedAnswers[q.id];
+              const answered = selected !== undefined && selected !== null;
+              const isCorrect = selected === q.correct_answer;
+
+              return (
+                <div key={q.id} className="bg-card rounded-2xl shadow-card p-5">
+                  <p className="font-medium text-foreground mb-3">
+                    {qi + 1}. {q.question}
+                  </p>
+                  <div className="space-y-2">
+                    {q.options.map((opt, i) => (
+                      <button
+                        key={i}
+                        onClick={() => selectAnswer(q.id, i)}
+                        className={`w-full text-left px-4 py-2.5 rounded-xl text-sm transition-all flex items-center gap-2 ${
+                          answered && i === q.correct_answer
+                            ? "bg-secondary/20 text-secondary font-medium"
+                            : answered && i === selected && !isCorrect
+                            ? "bg-destructive/10 text-destructive"
+                            : selected === i
+                            ? "bg-primary/10 text-primary"
+                            : "bg-muted text-muted-foreground hover:bg-muted/80"
+                        }`}
+                      >
+                        {answered && i === q.correct_answer && <CheckCircle className="w-4 h-4" />}
+                        {answered && i === selected && !isCorrect && <XCircle className="w-4 h-4" />}
+                        <span>{String.fromCharCode(65 + i)}. {opt}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {answered && q.explanation && (
+                    <p className="mt-3 text-sm text-muted-foreground bg-muted rounded-xl px-4 py-2">
+                      💡 {q.explanation}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </section>
   );
 }
