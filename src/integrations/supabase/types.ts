@@ -57,6 +57,7 @@ export type Database = {
           id: string
           subject: Database["public"]["Enums"]["subject_type"]
           title: string
+          topic_id: string | null
           updated_at: string
         }
         Insert: {
@@ -66,6 +67,7 @@ export type Database = {
           id?: string
           subject: Database["public"]["Enums"]["subject_type"]
           title: string
+          topic_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -75,9 +77,18 @@ export type Database = {
           id?: string
           subject?: Database["public"]["Enums"]["subject_type"]
           title?: string
+          topic_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "materials_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       quiz_questions: {
         Row: {
@@ -85,29 +96,120 @@ export type Database = {
           created_at: string
           created_by: string | null
           explanation: string | null
+          grading_criteria: string | null
           id: string
+          max_points: number
           options: Json
           question: string
+          question_type: string
           subject: Database["public"]["Enums"]["subject_type"]
+          topic_id: string | null
         }
         Insert: {
           correct_answer: number
           created_at?: string
           created_by?: string | null
           explanation?: string | null
+          grading_criteria?: string | null
           id?: string
+          max_points?: number
           options?: Json
           question: string
+          question_type?: string
           subject: Database["public"]["Enums"]["subject_type"]
+          topic_id?: string | null
         }
         Update: {
           correct_answer?: number
           created_at?: string
           created_by?: string | null
           explanation?: string | null
+          grading_criteria?: string | null
           id?: string
+          max_points?: number
           options?: Json
           question?: string
+          question_type?: string
+          subject?: Database["public"]["Enums"]["subject_type"]
+          topic_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_questions_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      test_attempts: {
+        Row: {
+          answers: Json
+          completed_at: string | null
+          created_at: string
+          id: string
+          max_score: number | null
+          score: number | null
+          subject: Database["public"]["Enums"]["subject_type"] | null
+          test_type: string
+          topic_id: string | null
+        }
+        Insert: {
+          answers?: Json
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          max_score?: number | null
+          score?: number | null
+          subject?: Database["public"]["Enums"]["subject_type"] | null
+          test_type?: string
+          topic_id?: string | null
+        }
+        Update: {
+          answers?: Json
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          max_score?: number | null
+          score?: number | null
+          subject?: Database["public"]["Enums"]["subject_type"] | null
+          test_type?: string
+          topic_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_attempts_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      topics: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          sort_order: number
+          subject: Database["public"]["Enums"]["subject_type"]
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          sort_order?: number
+          subject: Database["public"]["Enums"]["subject_type"]
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          sort_order?: number
           subject?: Database["public"]["Enums"]["subject_type"]
         }
         Relationships: []
