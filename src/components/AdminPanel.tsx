@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Plus, Trash2, BookOpen, Calculator, Loader2, Upload, Edit2, Save, X, Tag } from "lucide-react";
+import ExamBuilder from "./ExamBuilder";
 import { toast } from "sonner";
 
 type SubjectType = "bel" | "math";
