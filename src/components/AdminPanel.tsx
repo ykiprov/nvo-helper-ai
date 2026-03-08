@@ -74,6 +74,8 @@ export default function AdminPanel() {
   const [editMatData, setEditMatData] = useState<Partial<Material>>({});
   const [editingQ, setEditingQ] = useState<string | null>(null);
   const [editQData, setEditQData] = useState<Partial<QuizQuestion>>({});
+  const [editingTopic, setEditingTopic] = useState<string | null>(null);
+  const [editTopicData, setEditTopicData] = useState<Partial<Topic>>({});
 
   useEffect(() => { fetchData(); }, []);
 
