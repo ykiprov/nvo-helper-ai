@@ -311,7 +311,7 @@ export default function TestMode() {
     }]);
   };
 
-  const allTestQuestionsForScore = testType === "exam" && selectedSubject === "bel" && submitted
+  const allTestQuestionsForScore = testType === "exam" && submitted
     ? [...module1Questions, ...module2Questions]
     : testQuestions;
 
