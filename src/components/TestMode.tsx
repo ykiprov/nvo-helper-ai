@@ -284,8 +284,8 @@ export default function TestMode() {
     }
     setGrading(null);
 
-    // For BEL exam, show all questions
-    if (testType === "exam" && selectedSubject === "bel") {
+    // For exam, show all questions from both modules
+    if (testType === "exam") {
       setTestQuestions([...module1Questions, ...module2Questions]);
       setCurrentIdx(0);
     }
