@@ -346,7 +346,7 @@ export default function ExamBuilder() {
                               </span>
                               {q.topic_id && <span className="text-xs text-muted-foreground shrink-0">{topicName(q.topic_id)}</span>}
                             </button>
-                          )))}
+                          ))}
                         </div>
                       </div>
                     </div>
