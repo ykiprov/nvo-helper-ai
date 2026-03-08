@@ -38,10 +38,35 @@ interface GradeResult {
 type TestType = "topic" | "full" | "exam";
 type ExamModule = 1 | 2;
 
+interface NvoExam {
+  id: string;
+  title: string;
+  subject: SubjectType;
+}
+
+interface NvoExamModule {
+  id: string;
+  exam_id: string;
+  module_number: number;
+  time_minutes: number;
+  max_points: number;
+}
+
+interface NvoModuleQuestion {
+  module_id: string;
+  question_id: string;
+  sort_order: number;
+}
+
 export default function TestMode() {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [allQuestions, setAllQuestions] = useState<QuizQuestion[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Configured exams from DB
+  const [nvoExams, setNvoExams] = useState<NvoExam[]>([]);
+  const [nvoModules, setNvoModules] = useState<NvoExamModule[]>([]);
+  const [nvoModuleQuestions, setNvoModuleQuestions] = useState<NvoModuleQuestion[]>([]);
 
   // Test state
   const [testType, setTestType] = useState<TestType | null>(null);
@@ -53,11 +78,13 @@ export default function TestMode() {
   const [submitted, setSubmitted] = useState(false);
   const [grading, setGrading] = useState<string | null>(null);
 
-  // NVO BEL exam module state
+  // NVO exam module state
   const [examModule, setExamModule] = useState<ExamModule>(1);
   const [module1Questions, setModule1Questions] = useState<QuizQuestion[]>([]);
   const [module2Questions, setModule2Questions] = useState<QuizQuestion[]>([]);
   const [module1Submitted, setModule1Submitted] = useState(false);
+  const [module1Time, setModule1Time] = useState(60);
+  const [module2Time, setModule2Time] = useState(90);
 
   // Timer
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
@@ -66,9 +93,12 @@ export default function TestMode() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [tRes, qRes] = await Promise.all([
+        const [tRes, qRes, exRes, modRes, mqRes] = await Promise.all([
           supabase.from("topics").select("*").order("subject").order("sort_order"),
           supabase.from("quiz_questions").select("*").order("created_at"),
+          supabase.from("nvo_exams").select("*").order("created_at", { ascending: false }),
+          supabase.from("nvo_exam_modules").select("*"),
+          supabase.from("nvo_module_questions").select("*").order("sort_order"),
         ]);
         if (tRes.error) console.error("Topics fetch error:", tRes.error);
         if (qRes.error) console.error("Questions fetch error:", qRes.error);
@@ -81,6 +111,9 @@ export default function TestMode() {
             max_points: q.max_points || 1,
           })) as QuizQuestion[]
         );
+        setNvoExams((exRes.data || []) as NvoExam[]);
+        setNvoModules((modRes.data || []) as NvoExamModule[]);
+        setNvoModuleQuestions((mqRes.data || []) as NvoModuleQuestion[]);
       } catch (err) {
         console.error("Failed to load test data:", err);
       } finally {
