@@ -27,12 +27,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    let mounted = true;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        if (!mounted) return;
         const u = session?.user ?? null;
         setUser(u);
         if (u) {
-          await checkRole(u.id);
+          // Use setTimeout to avoid blocking the auth lock
+          setTimeout(() => {
+            if (mounted) checkRole(u.id);
+          }, 0);
         } else {
           setIsTeacher(false);
         }
@@ -40,16 +46,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const u = session?.user ?? null;
-      setUser(u);
-      if (u) {
-        checkRole(u.id);
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
