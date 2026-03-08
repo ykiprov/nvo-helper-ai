@@ -510,9 +510,9 @@ export default function TestMode() {
       )}
 
       {/* Module 2 intro */}
-      {isBelExam && examModule === 2 && !submitted && currentIdx === 0 && (
+      {isExam && examModule === 2 && !submitted && currentIdx === 0 && (
         <div className="bg-accent/10 rounded-2xl p-5 mb-4">
-          <h4 className="font-display font-bold text-foreground mb-2 flex items-center gap-2"><BookOpen className="w-5 h-5 text-accent" /> Модул 2 — Преразказ</h4>
+          <h4 className="font-display font-bold text-foreground mb-2 flex items-center gap-2"><BookOpen className="w-5 h-5 text-accent" /> Модул 2</h4>
           <p className="text-sm text-muted-foreground">
             Прочетете текста и изпълнете дидактическата задача. Напишете подробен преразказ, като следвате указанията. Имате 90 минути.
           </p>
