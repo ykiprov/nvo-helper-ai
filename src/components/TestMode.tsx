@@ -432,7 +432,7 @@ export default function TestMode() {
   // Test in progress
   const q = testQuestions[currentIdx];
   const answered = answers[q?.id];
-  const isBelExam = testType === "exam" && selectedSubject === "bel";
+  const isExam = testType === "exam";
 
   return (
     <section className="max-w-3xl mx-auto px-4 py-8">
