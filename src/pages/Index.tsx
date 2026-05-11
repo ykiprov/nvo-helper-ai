@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { GraduationCap, MessageCircle, BookOpen, Settings, LogIn, Target, Dumbbell, ChevronDown, ChevronUp } from "lucide-react";
+import { GraduationCap, MessageCircle, BookOpen, Settings, LogIn, Target, Dumbbell, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ChatInterface from "@/components/ChatInterface";
 import MaterialsSection from "@/components/MaterialsSection";
