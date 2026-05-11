@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { GraduationCap, MessageCircle, BookOpen, Settings, LogIn, Target, Dumbbell, ChevronDown, ChevronUp } from "lucide-react";
+import { GraduationCap, MessageCircle, BookOpen, Settings, LogIn, Target, Dumbbell, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ChatInterface from "@/components/ChatInterface";
 import MaterialsSection from "@/components/MaterialsSection";
@@ -75,6 +75,30 @@ function HeroSection({ onStartChat, onMaterials, onPractice, onTests }: {
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+        {/* Warning banner */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4 }}
+          className="mb-8 rounded-2xl border-2 border-destructive/40 bg-destructive/10 p-5"
+        >
+          <div className="flex items-start gap-4">
+            <div className="shrink-0 mt-0.5">
+              <div className="w-10 h-10 rounded-full bg-destructive/20 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-destructive" />
+              </div>
+            </div>
+            <div>
+              <h3 className="font-display font-bold text-destructive text-lg mb-1">
+                Внимание — сайтът е в процес на изработка
+              </h3>
+              <p className="text-sm text-destructive/90 leading-relaxed">
+                Този сайт <strong>не е готов</strong> за използване от ученици. Темите не са прецизирани, а въпросите и материалите са с демонстрационна цел и <strong>не са прегледани от учители</strong>. Моля, не го използвайте за реална подготовка за НВО в този си вид.
+              </p>
+            </div>
+          </div>
+        </motion.div>
+
         {/* Hero */}
         <div className="text-center mb-12">
           <div className="w-20 h-20 rounded-2xl gradient-hero mx-auto flex items-center justify-center mb-6">
